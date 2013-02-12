@@ -1,0 +1,50 @@
+<!--
+ Copyright (c) 2012 Jeremy Wang
+ Licensed under the MIT License (LICENSE)
+ 
+ Version 0.1.0
+-->
+
+<!DOCTYPE html>
+<head>
+<title>NEDmap</title>
+<link href='css/main.css' rel='stylesheet'/>
+<!-- Google font -->
+<link href='http://fonts.googleapis.com/css?family=Special+Elite' rel='stylesheet' type='text/css'>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script src='js/jquery.mousewheel.js'></script>
+<script src='js/main.js'></script>
+<script src='js/remote.js'></script>
+<script src="js/map.js"></script>
+
+</head>
+<body onload="init()">
+
+    <div class='header'>
+        <div class='shader'></div>
+        <div class='header-text'>
+            <h1 style="padding-left: 20px; padding-right:20px;">NEDmap</h1>
+            Natural Earth Data
+            <br/>
+            <br/>
+            <div onclick="toggle_box(this, 'about')" class='link' id='more'>&lt; More</div>
+            <div id='about' class='popup'>
+                This is a map visualization of the <a href='http://www.naturalearthdata.com' target='_blank'>Natural Earth Data</a>. These guys are great. If it is not working for you for any reason, the best thing to do is to get a newer and/or better browser. It should work in the latest versions of Google Chrome, Firefox, Safari, and Internet Explorer. If it still isn't working, especially if it simply is not loading some of the denser data, this is a fundamental problem with your browser or operating system which doesn't allow it to evaluate this quantity of data and there isn't much I can do for you, sorry. If you zoom in somewhat, this application will load something north of 100 Mb of data defining over 30,000 polygons and 5 million points. This is a lot of data!
+                <br/>
+                <br/>
+            The code is open source under an MIT License and is hosted at <a href='http://code.google.com/p/ned-map'>code.google.com/p/ned-map</a>. Natural Earth Data is in the public domain. Parts of the rendering were inspired by shapefile-js (<a href='https://github.com/RandomEtc/shapefile-js'>github.com/RandomEtc/shapefile-js</a>), which is a great demonstration of the same principles. The primary difference is that I preprocess the shapefiles behind the scenes and load pure JSON instead.
+            </div>
+        </div>
+    </div>
+
+    <div id='map' class='map_container' style="background-color: #BBDDFF"></div>
+    
+    <div class='zoomer'>
+        <div class='plusminus' onclick='zoom(1.5)'>+</div>
+        <div class='plusminus' onclick='zoom(0.67)'>-</div>
+    </div>
+
+    <div class='footer'><a href='http://www.naturalearthdata.com' target='_blank'><img src='img/NED_logo.png' style='width: 180px'/></a></div>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+Copyright (c) 2012 Jeremy Wang
+Available under an MIT License (see LICENSE)
+
+
+NEDmap - Natural Earth Data Map
+
+A web-based visualization tool for and with the public domain Natural
+Earth data (naturalearthdata.com).
+
+Visualization tools forked from code.google.com/p/ccf-mapview, a
+visualization tool for world climate data (ccc-gistemp) by the Climate
+Code Foundation.
+
+Unlike tile-based map viewers like Google Maps and OpenLayers, we render
+vector graphics directly.
+
+Standard (index.html, map.js, main.js) renders visible tiles
+    only, requiring more preprocessing to create usable vector tiles,
+    but with much better client-side performance
+Untiled (untiled.html, map.untiled.js, main.untiled.js), while it technically renders only
+    those objects at least partially visible in the current screen, must
+    look through all vectors just to be sure, so requires little
+    preprocessing, but with a painful real-time performance hit
+
+See also:
+Cartagen (cartagen.org)
+Polymaps (polymaps.org)

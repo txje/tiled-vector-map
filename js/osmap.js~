@@ -1,0 +1,421 @@
+/*
+ Copyright (c) 2012 Jeremy Wang
+ Licensed under the MIT License (LICENSE.txt)
+*/
+
+// Euclidean distance
+function eucldist(p1, p2) {
+    return Math.sqrt(Math.pow((p1[0]-p2[0]), 2) + Math.pow((p1[1]-p2[1]), 2));
+}
+
+// Returns a boolean - if the bounding box falls completely outside the current viewing window on the map
+function outOfBounds(bbox, map) {
+    // bbox = [w, s, e, n]
+    return (bbox[0] > map.e || bbox[1] > map.n || bbox[2] < map.w || bbox[3] < map.s)
+}
+
+// Mercator projection
+
+function mercator(p) {
+    if(p[1] > 85 || p[1] < -85)
+        return null;
+    // uses the equations for Mercator projection a la http://en.wikipedia.org/wiki/Mercator_projection
+    return [p[0], 180/Math.PI * Math.log(Math.tan(Math.PI/4 + p[1]*(Math.PI/180)/2))];
+}
+
+/*
+{
+    'title': 'Boston OSM',
+    'left': -71.861,
+    'bottom': 42.702,
+    'right': -70.285,
+    'top': 41.951,
+    'stylesheet': 'boston.osm.gss',
+    'tiles': {
+        '0-': {
+            'rows': 1,
+            'cols': 1,
+            'path': 'boston.osm.tile'
+        }
+    }
+}
+*/
+
+function CanvasMap(container, data, style) {
+    
+    this.layers = [];
+    var layer_map = {};
+    
+    var projection = data['projection'];
+    
+    // Add a control layer to handle mouse interaction including:
+    // 1. Detecting the cursor position
+    // 2. Dragging to pan
+    // 3. Scrolling to zoom
+    // Data layers will be stuck in under this layer
+    this.control_layer = new ControlLayer(this, container);
+    this.control_layer.$canvas.mousedown(attacher(this, function(e) {
+        this.drag_x = e.pageX;
+        this.drag_y = e.pageY;
+        this.drag_s = this.s;
+        this.drag_w = this.w;
+        this.drag_n = this.n;
+        this.drag_e = this.e;
+        this.dragging = true;
+    }));
+    this.control_layer.$canvas.mousemove(attacher(this, function(e) {
+        var lon_offset = (e.pageX - this.drag_x) / this.zoom;
+        var lat_offset = (e.pageY - this.drag_y) / this.zoom;
+        if(this.dragging) {
+            this.update(this.zoom, this.drag_s+lat_offset, this.drag_w-lon_offset, this.drag_n+lat_offset, this.drag_e-lon_offset);
+        }
+    }));
+    this.control_layer.$canvas.mouseup(attacher(this, function(e) {
+        this.dragging = false;
+    }));
+    this.control_layer.$canvas.mousewheel(attacher(this, function(e, delta, deltaX, deltaY) {
+        var mouse_coord = [this.n-e.pageY/this.zoom, e.pageX/this.zoom+this.w]; // [s,w] of the mouse
+        this.zoom *= Math.pow(1.1, delta); // zoom in
+        var new_center = [mouse_coord[0] + (e.pageY - $(window).height()/2) / this.zoom, mouse_coord[1] + ($(window).width()/2 - e.pageX) / this.zoom];
+        this.resize(null, new_center); // on the mouse position
+    }));
+    this.control_layer.$canvas.click(attacher(this, function(e) {
+        // manually propogate click events down through layers
+        for(l in this.layers) {
+            if(this.layers[l].click)
+                this.layers[l].click(e);
+        }
+    }));
+    
+    // pan and changeZoom are updater functions triggered globally by buttons to
+    // adjust the viewing window
+    this.pan = function(x, y) {
+        var degreesWide = this.width / this.zoom;
+        var degreesHigh = this.height / this.zoom;
+        var xchange = x * degreesWide;
+        var ychange = y * degreesHigh;
+        
+        var s = this.s + ychange;
+        var w = this.w + xchange;
+        var n = this.n + ychange;
+        var e = this.e + xchange;
+     
+        this.update(null, s, w, n, e);
+    }
+    
+    this.changeZoom = function(mult) {
+        this.zoom *= mult;
+        this.resize();
+    }
+
+    this.update = function(z, s, w, n, e) {
+        if(z != null)
+            this.zoom = z;
+        if(s != null)
+            this.s = s;
+        if(w != null)
+            this.w = w;
+        if(n != null)
+            this.n = n;
+        if(e != null)
+            this.e = e;
+        for(var l in this.layers) {
+            this.redoLayer(l);
+        }
+    }
+    
+    this.redoLayer = function(l) {
+        this.layers[l].render();
+    }
+    
+    this.hide = function(id) {
+        if(id in layer_map) {
+            var l = layer_map[id];
+            this.layers[l].hide();
+            this.redoLayer(l);
+            return true;
+        }
+        return false;
+    }
+    
+    this.show = function(id) {
+        if(id in layer_map) {
+            var l = layer_map[id];
+            this.layers[l].show();
+            this.redoLayer(l);
+            return true;
+        }
+        return false;
+    }
+    
+    this.coord = function(x, y) {
+        if(projection == 'Mercator') {
+            var pt = mercator([x,y]);
+            x = pt[0];
+            y = pt[1];
+        }
+        x = (x - this.w) * this.zoom;
+        y = (y - this.s) * this.zoom;
+        return [x,y];
+    }
+    
+    this.clear = function() {
+        for(l in this.layers) {
+            this.layers[l].clear();
+        }
+    }
+    
+    this.resize = function(event, center) {
+        this.width = $(window).width();
+        this.height = $(window).height();
+        
+        this.control_layer.$canvas.attr('width', this.width);
+        this.control_layer.$canvas.attr('height', this.height);
+
+        for(var l in this.layers) {
+            this.layers[l].$canvas.attr('width', this.width);
+            this.layers[l].$canvas.attr('height', this.height);
+        }
+        var degreesWide = this.width / this.zoom;
+        var degreesHigh = this.height / this.zoom;
+        if(center == null)
+            center = [this.s + (this.n - this.s)/2, this.w + (this.e - this.w)/2];
+        var s = center[0] - degreesHigh / 2;
+        var n = center[0] + degreesHigh / 2;
+        var w = center[1] - degreesWide / 2;
+        var e = center[1] + degreesWide / 2;
+        this.update(null, s, w, n, e);
+    }
+    
+    // add the only layer (right now)
+    this.layers.push(new TiledLayer(this, container, 'all', {'tiles':data['tiles'], 'style':style}));
+    var i = this.layers.length - 1;
+    layer_map['all'] = i;
+    
+    // adjust the window dynamically to fit the data
+    this.top = data['top'];
+    this.bottom = data['bottom'];
+    this.left = data['left'];
+    this.right = data['right'];
+    this.degWide = data['right'] - data['left'];
+    this.degTall = data['top'] - data['bottom'];
+    console.log(this.degWide.toFixed(5) + ' x ' + this.degTall.toFixed(5) + ' degrees');
+    this.s = this.bottom;
+    this.w = this.left;
+    this.n = this.top;
+    this.e = this.right;
+    this.zoom = Math.min($(window).height()/(this.n-this.s), $(window).width()/(this.e-this.w));
+    this.resize(); // adjust for window size at startup
+ 
+    $(window).resize(attacher(this, this.resize));
+    console.log('initial zoom: ' + this.zoom.toFixed(2) + 'x');
+    this.show('all');
+}
+
+
+function ControlLayer(map, container) {
+    this.$canvas = $('<canvas>');
+    this.$canvas.addClass('layer');
+    $(container).append(this.$canvas);
+    this.$canvas.attr('width', this.$canvas.width());
+    this.$canvas.attr('height', this.$canvas.height());
+    this.ctx = this.$canvas.get(0).getContext('2d');
+    
+    this.map = map;
+    
+    // attach the mouse listener to the topmost layer
+    this.$canvas.mousemove(attacher(this, function(e) {
+        var x = e.pageX - $(e.currentTarget).offset().left;
+        var y = e.pageY - $(e.currentTarget).offset().top;
+        var lon = x/this.map.width * (this.map.e-this.map.w) + this.map.w;
+        var lat = (1 - y/this.map.height) * (this.map.n-this.map.s) + this.map.s;
+        if(lon < 0)
+            lon = (lon * -1).toFixed(2) + ' W';
+        else
+            lon = lon.toFixed(2) + ' E';
+        if(lat < 0)
+            lat = (lat * -1).toFixed(2) + ' S';
+        else
+            lat = lat.toFixed(2) + ' N';
+        this.ctx.clearRect(0,0,100,20);
+        this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        this.ctx.fillRect(0,0,100,20);
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillText(lon + ', ' + lat, 5, 10);
+    }));
+}
+
+// there is actually only ever one layer
+function TiledLayer(map, container, id, data) {
+    
+    this.$canvas = $('<canvas>');
+    this.$canvas.addClass('layer');
+    this.$canvas.insertBefore(map.control_layer.$canvas);
+    this.$canvas.attr('width', this.$canvas.width());
+    this.$canvas.attr('height', this.$canvas.height());
+    this.ctx = this.$canvas.get(0).getContext('2d');
+    
+    var hidden = true;
+    this.hide = function() {
+        hidden = true;
+        this.clear();
+    }
+    this.show = function() {
+        hidden = false;
+    }
+    this.visible = function() {
+        return !hidden;
+    }
+    
+    this.clear = function() {
+        this.ctx.clearRect(0, 0, this.$canvas.width(), this.$canvas.height());
+    }
+    
+    this.render = function() {
+        if(hidden) {
+            return;
+        }
+        this.clear();
+        for(var i in resolutions) {
+            var r = resolutions[i][0]
+            var tilesize = Math.max(this.map.degWide / resolutions[i][1]['rows'], this.map.degTall / resolutions[i][1]['cols']); // we assume here that tiles are square, mostly
+            var filepath = resolutions[i][1]['path'];
+            if(r <= this.map.zoom) {
+                var lastrow = Math.min(Math.ceil(this.map.degTall/tilesize)-1, parseInt((this.map.top - this.map.s) / tilesize));
+                var lastcol = Math.min(Math.ceil(this.map.degWide/tilesize)-1, parseInt((this.map.right - this.map.e) / tilesize));
+                for(var row = Math.max(0, parseInt((this.map.top - this.map.n) / tilesize)); row <= lastrow; row++) {
+                    for(var col = Math.max(0, parseInt((this.map.right + this.map.w) / tilesize)); col <= lastcol; col++) {
+                        if(tiles[r][row][col] && tiles[r][row][col].loaded) {
+                            tiles[r][row][col].render(this.map, this.ctx)
+                        }
+                        else {
+                            if (!tiles[r][row][col]) {
+                                console.log('loading tile ' + row + ', ' + col);
+                                tiles[r][row][col] = new VectorTile(tilesize, 'data/'+filepath.replace('[x]', col).replace('[y]', row), styles,
+                                    attacher(this, function(t){t.render(this.map, this.ctx);}));
+                            }
+                        }
+                    }
+                }
+                break; // determining when and how to show lower resolutions while loading, etc, is much more complicated with layers, so right now we'll just never show old resolutions
+            }
+        }
+    }
+
+    this.map = map;
+    this.id = id;
+
+    var styles = data['style'];
+    
+    var resolutions = [];
+    // flatten the dictionary to a list
+    for(var r in data['tiles'])
+        resolutions.push([parseInt(r), data['tiles'][r]]);
+    // sort resolutions from highest to lowest
+    resolutions.sort(function(a,b){return b[0]-a[0]});
+
+    // this will be a sparse array with only indices with known resolutions filled
+    // each resolution will have an array of (row x col) tiles
+    var tiles = [];
+    for(var i in resolutions) {
+        var res = resolutions[i][0];
+        var rows = resolutions[i][1]['rows'];
+        //var cols = resolutions[i][1]['cols'];
+        tiles[res] = [];
+        for(var y = 0; y < rows; y++) {
+            tiles[res][y] = [];
+        }
+                
+    }
+}
+
+function VectorTile(tilesize, filepath, style, loadback) {
+    
+    var data = {};
+    this.loaded = false;
+    
+    // get the index of the polygon at the given pixel coordinates (x,y)
+    this.atCoord = function(x, y) {
+        return null;
+    }
+    
+    this.load = function(read_data) {
+        for(var d = 0; d < read_data.length; d++) {
+            var v = read_data[d];
+            // make a double nested vector type hash
+            if(!data[v[0]])
+                data[v[0]] = {};
+            if(!data[v[0]][v[1]])
+                data[v[0]][v[1]] = [];
+            // construct the points array
+            // (points in the file are offset and scaled - these need to be undone)
+            var pts = [];
+            for(var p = 0; p < v[5].length; p+=2) {
+                pts.push([v[5][p] / v[4] + v[2], v[5][p+1] / v[4] + v[3]]);
+            }
+            data[v[0]][v[1]].push(pts);
+        }
+        this.loaded = true;
+        loadback(this);
+    }
+    
+    this.render = function(map, ctx) {
+        for(var key in data) {
+            for(var val in data[key]) {
+                ctx.save();
+                // set styles
+                var fill = false;
+                var stroke = false;
+                if(style[key] && style[key][val]) {
+                    for(var s in style[key][val]) {
+                        ctx[s] = style[key][val][s];
+                        if(s == 'fillStyle')
+                            fill = true;
+                        if(s == 'strokeStyle')
+                            stroke = true;
+                    }
+                }
+                else {
+                    for(var s in style['default']) {
+                        ctx[s] = style['default'][s];
+                        if(s == 'fillStyle')
+                            fill = true;
+                        if(s == 'strokeStyle')
+                            stroke = true;
+                    }
+                }
+                // draw polygons
+                for(var d = 0; d < data[key][val].length; d++) {
+                    var pts = data[key][val][d];
+                    ctx.beginPath();
+                    //console.log(pts[0][0], pts[0][1], map.s);
+                    var coords = map.coord(pts[0][0], pts[0][1]);
+                    //console.log(coords[0], coords[1]);
+                    ctx.moveTo(coords[0], map.height - coords[1]);
+                    for(var pt = 1; pt < pts.length; pt++) {
+                        coords = map.coord(pts[pt][0], pts[pt][1]);
+                        ctx.lineTo(coords[0], map.height - coords[1]);
+                    }
+                    if(fill) {
+                        ctx.fill();
+                    }
+                    if(stroke) {
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            }
+        }
+    }
+    
+    // fetch the JSON data
+    var handle = {
+        'callback': attacher(this, function(data) {
+            this.load(data);
+        }),
+        'error': function(msg) {
+            console.log(msg);
+        }
+    };
+    JSON(filepath, handle, {});
+}

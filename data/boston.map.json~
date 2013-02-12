@@ -1,0 +1,27 @@
+{
+    'title': 'Boston OSM',
+    'left': -71.861,
+    'top': 42.702,
+    'right': -70.285,
+    'bottom': 41.951,
+    'stylesheet': 'boston.osm.gss',
+    'layers': {
+        '0': {
+            'type': 'vector',
+            'tiles': {
+                '0': {
+                    'rows': 1,
+                    'cols': 1,
+                    'path': 'boston.osm.tile'
+                }
+            }
+        },
+        '1': {
+            'type': 'gpx',
+            'key': 'run',
+            'val': 'marathon',
+            'path': 'boston_marathon.gpx'
+        }
+    },
+    'projection': 'Mercator'
+}

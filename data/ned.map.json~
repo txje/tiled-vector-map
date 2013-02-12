@@ -1,0 +1,25 @@
+{
+    'title': 'Natural Earth',
+    'left': -180,
+    'bottom': -90,
+    'right': 180,
+    'top': 90,
+    'stylesheet': 'ned.gss',
+    'tiles': {
+        '0-16': {
+            'rows': 2,
+            'cols': 4,
+            'path': 'tiles/90/[x]_[y].json'
+        },
+        '16-80': {
+            'rows': 9,
+            'cols': 18,
+            'path': 'tiles/20/[x]_[y].json'
+        },
+        '80-': {
+            'rows': 45,
+            'cols': 90,
+            'path': 'tiles/4/[x]_[y].json'
+        }
+    }
+}

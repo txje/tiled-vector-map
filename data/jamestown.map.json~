@@ -1,0 +1,21 @@
+{
+    'title': 'Jamestown OSM',
+    'left': -79,
+    'top': 37,
+    'right': -81,
+    'bottom': 35,
+    'stylesheet': 'jamestown.osm.gss',
+    'layers': {
+        '0': {
+            'type': 'vector',
+            'tiles': {
+                '0': {
+                    'rows': 1,
+                    'cols': 1,
+                    'path': 'jamestown.roads.tile'
+                }
+            }
+        }
+    },
+    'projection': 'Mercator'
+}

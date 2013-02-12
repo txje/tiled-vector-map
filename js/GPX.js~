@@ -1,0 +1,78 @@
+/*
+Jeremy Wang
+Oct 24, 2012
+
+Parse GPX (GPS/XML) files
+[like those produced by Garmin Connect]
+*/
+
+multiplier = 10000000
+
+function GPX(f, handler) {
+    var xmlhttp;
+    if (window.XMLHttpRequest) { // IE7+, Firefox, Chrome, Opera, Safari
+        xmlhttp = new XMLHttpRequest();
+    }
+    else { // IE5,6
+        xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
+    }
+    xmlhttp.onreadystatechange=function(){
+        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+            var xmlDoc = xmlhttp.responseXML;
+            if(!xmlDoc) {
+                if (window.DOMParser) {
+                    parser = new DOMParser();
+                    xmlDoc = parser.parseFromString(xmlhttp.responseText,"text/xml");
+                }
+                else { // Internet Explorer
+                    xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+                    xmlDoc.async = false;
+                    xmlDoc.loadXML(xmlhttp.responseText); 
+                }
+            }
+            var gpx = xmlDoc.getElementsByTagName("gpx")[0];
+            var trk = gpx.getElementsByTagName('trk')[0];
+            var name = trk.getElementsByTagName('name')[0].childNodes[0].nodeValue;
+            var tracks = [];
+            for(var t = 0; t < trk.getElementsByTagName('trkseg').length; t++) {
+                var seg = trk.getElementsByTagName('trkseg')[t];
+                var line = []; //delta-encoded
+                var lastpt = [0,0];
+                var elevation = []; //delta-encoded
+                var lastel = 0;
+                var time = []; //delta-encoded
+                var lastti = 0;
+                for(var p = 0; p < seg.getElementsByTagName('trkpt').length; p++) {
+                    var pt = seg.getElementsByTagName('trkpt')[p];
+                    var coord = [parseInt(parseFloat(pt.getAttribute('lon'))*multiplier) - lastpt[0], parseInt(parseFloat(pt.getAttribute('lat'))*multiplier) - lastpt[1]];
+                    lastpt = [lastpt[0] + coord[0], lastpt[1] + coord[1]];
+                    line.push(coord);
+                    var ele = parseInt(parseFloat(pt.getElementsByTagName('ele')[0].innerText)*10) - lastel; // elevation scaled x10 (now in units of 10cm)
+                    lastel = lastel + ele;
+                    elevation.push(ele);
+                    // time in the format: 2012-04-16T14:42:35.000Z
+                    var date = pt.getElementsByTagName('time')[0].textContent;
+                    var year = parseInt(date.substring(0, 4));
+                    var month = parseInt(date.substring(5, 7));
+                    var day = parseInt(date.substring(8, 10));
+                    var hour = parseInt(date.substring(11, 13));
+                    var minute = parseInt(date.substring(14, 16));
+                    var second = parseInt(date.substring(17, 19));
+                    var millis = parseInt(date.substring(20, 23));
+                    var epoch = parseInt(Date.UTC(year, month, day, hour, minute, second, millis) * 0.001) - lastti;
+                    lastti = lastti + epoch;
+                    time.push(epoch);
+                }
+                tracks.push([[lastpt, multiplier, line], [lastel, 10, elevation], [lastti, 0.001, time]]);
+            }
+            handler.callback([name, tracks]);
+        }
+        else if(xmlhttp.readyState == 4) {
+            handler.error('Error: ' + xmlhttp.status);
+        }
+    }
+    xmlhttp.open("GET", f, true);
+    xmlhttp.setRequestHeader("Content-type", "text/xml");
+    xmlhttp.send();
+
+}

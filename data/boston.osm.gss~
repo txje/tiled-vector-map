@@ -1,0 +1,118 @@
+{
+    'default': {
+        'poly': {
+            'lineWidth': 1,
+            'strokeStyle': 'rgb(200,200,200)'
+        }
+    },
+    'run': {
+        'marathon': {
+            'poly': {
+                'lineWidth': 2,
+                'strokeStyle': 'rgb(150,100,255)'
+            }
+        }
+    },
+    'boundary': {
+        'administrative': {
+            'poly': {
+                'lineWidth': 1,
+                'strokeStyle': 'rgb(130,130,130)'
+            },
+            'label': {
+                'font': 'normal 8pt XKCD',
+                'textAlign': 'center',
+                'textBaseline': 'middle',
+                'fillStyle': 'rgb(130,130,130)'
+            }
+        }
+    },
+    'waterway': {
+        'river': {
+            'poly': {
+                'lineWidth': 1,
+                'strokeStyle': 'rgb(100,100,255)'
+            },
+            'label': {
+                'font': 'normal 8pt XKCD',
+                'textAlign': 'center',
+                'textBaseline': 'middle',
+                'fillStyle': 'rgb(180,180,255)'
+            }
+        },
+        'riverbank': {
+            'poly': {
+                'fillStyle': 'rgb(100,100,255)'
+            },
+            'label': {
+                'font': 'normal 8pt XKCD',
+                'textAlign': 'center',
+                'textBaseline': 'middle',
+                'fillStyle': 'rgb(180,180,255)'
+            }
+        }
+    },
+    'natural': {
+        'water': {
+            'poly': {
+                'fillStyle': 'rgb(100,100,255)'
+            },
+            'label': {
+                'font': 'normal 8pt XKCD',
+                'textAlign': 'center',
+                'textBaseline': 'middle',
+                'fillStyle': 'rgb(180,180,255)'
+            }
+        },
+        'coastline': {
+            'poly': {
+                'lineWidth': 2,
+                'strokeStyle': 'rgb(200,200,200)'
+            },
+            'label': {
+                'font': 'normal 8pt XKCD',
+                'textAlign': 'center',
+                'textBaseline': 'middle',
+                'fillStyle': 'rgb(180,180,255)'
+            }
+        }
+    },
+    'highway_TMP_REMOVED': {
+        'motorway': {
+            'poly': {
+                'lineWidth': 3,
+                'strokeStyle': 'rgb(255,100,100)'
+            }
+        },
+        'trunk': {
+            'poly': {
+                'lineWidth': 2,
+                'strokeStyle': 'rgb(255,255,100)'
+            }
+        },
+        'primary': {
+            'poly': {
+                'lineWidth': 2,
+                'strokeStyle': 'rgb(100,255,100)'
+            }
+        },
+        'motorway_link': {
+            'poly': {
+                'lineWidth': 3,
+                'strokeStyle': 'rgb(255,100,100)'
+            }
+        },
+        'trunk_link': {
+            'poly': {
+                'lineWidth': 2,
+                'strokeStyle': 'rgb(255,255,100)'
+            }
+        },
+        'primary_link': {
+            'poly': {
+                'lineWidth': 2,
+                'strokeStyle': 'rgb(100,255,100)'
+            }
+        }
+    }
+}
